@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(touch data/raw/.gitkeep data/processed/.gitkeep data/vector_stores/.gitkeep)",
+      "Bash(touch core/__init__.py ml/__init__.py ml/models/__init__.py ml/pipelines/__init__.py ml/evaluation/__init__.py genai/__init__.py genai/clients/__init__.py genai/prompts/__init__.py genai/rag/__init__.py genai/rag/ingestion/__init__.py genai/rag/retrieval/__init__.py genai/rag/generation/__init__.py genai/evaluation/__init__.py agents/__init__.py agents/tools/__init__.py agents/memory/__init__.py agents/planning/__init__.py agents/validation/__init__.py apps/__init__.py apps/api/__init__.py apps/demos/__init__.py tests/__init__.py tests/unit/__init__.py tests/unit/core/__init__.py tests/unit/ml/__init__.py tests/unit/genai/__init__.py tests/unit/genai/rag/__init__.py tests/unit/agents/__init__.py tests/integration/__init__.py tests/e2e/__init__.py)",
+      "Bash(py -m pytest tests/ -v)",
+      "Bash(py -m ruff check .)",
+      "Bash(py -m ruff format . --check)",
+      "Bash(py -m mypy . --strict)",
+      "Bash(py -m ruff format .)",
+      "Bash(docker-compose logs *)"
+    ]
+  }
+}

@@ -1,0 +1,162 @@
+[
+  {
+    "id": "ms_001",
+    "description": "HL7 ADT^A01 MLLP message parsing failure — missing PID segment",
+    "input": {
+      "error_message": "org.mule.runtime.core.api.exception.MessagingException: DataWeave transformation failed: Null value found at key 'PID.3' — expected patient identifier",
+      "stack_trace": "org.mule.runtime.core.api.exception.MessagingException: DataWeave transformation failed\n  at org.mule.runtime.core.internal.processor.chain.InterceptedReactiveProcessor.lambda$apply$0(InterceptedReactiveProcessor.java:54)\n  at com.mulesoft.connectors.hl7.internal.listener.MllpMessageListener.onMessage(MllpMessageListener.java:112)\n  at org.mule.module.scripting.component.ScriptComponent.doProcess(ScriptComponent.java:89)\nCaused by: org.mule.runtime.api.el.ExpressionExecutionException: Null value at 'payload.PID[0].PID3[0].CX1'\n  at org.mule.runtime.core.internal.el.mvel.datatype.MvelDataTypeResolver.resolve(MvelDataTypeResolver.java:67)\n  at org.mule.weave.v2.runtime.RuntimeModule.run(RuntimeModule.java:240)",
+      "logs": "2026-04-28T08:10:01Z INFO  [mllp-receiver-01] hl7-admission-flow: MLLP connection accepted from EHR-EPIC-PROD host=10.20.1.5:4000\n2026-04-28T08:10:01Z INFO  [mllp-receiver-01] hl7-admission-flow: Received HL7 message MSH|^~\\&|EPIC|HOSP|MULE|INTG|20260428081001||ADT^A01|MSG00192|P|2.5\n2026-04-28T08:10:02Z WARN  [mllp-receiver-01] hl7-admission-flow: PID segment missing CX1 (patient ID) field — message_id=MSG00192\n2026-04-28T08:10:02Z ERROR [mllp-receiver-01] hl7-admission-flow: DataWeave transformation failed on ADT^A01 message_id=MSG00192 patient_id=null\n2026-04-28T08:10:02Z ERROR [mllp-receiver-01] hl7-admission-flow: MessagingException: Null value at payload.PID[0].PID3[0].CX1\n2026-04-28T08:10:02Z WARN  [mllp-receiver-01] hl7-admission-flow: Sending NACK to EHR — message_id=MSG00192",
+      "service_name": "hl7-admission-integration",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["PID", "null", "patient identifier", "DataWeave", "HL7"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "ms_002",
+    "description": "Epic FHIR R4 endpoint rate limiting — HTTP 429 throttle on patient search",
+    "input": {
+      "error_message": "HTTP GET https://api.epic.com/FHIR/R4/Patient?identifier=1234567 returned 429 Too Many Requests — Retry-After: 60",
+      "stack_trace": "com.mulesoft.connectors.http.api.error.ResponseValidatorTypedException: Response code 429 mapped as failure\n  at com.mulesoft.connectors.http.internal.request.validator.DefaultHttpResponseValidator.validate(DefaultHttpResponseValidator.java:75)\n  at com.mulesoft.connectors.http.internal.request.HttpRequestOperations.execute(HttpRequestOperations.java:183)\n  at sun.reflect.NativeMethodAccessorImpl.invoke0(NativeMethodAccessorImpl.java)\n  at org.mule.runtime.module.extension.internal.runtime.operation.OperationMessageProcessor.doProcess(OperationMessageProcessor.java:147)\nCaused by: org.mule.runtime.http.api.domain.message.response.HttpResponse: status=429 body={\"resourceType\":\"OperationOutcome\",\"issue\":[{\"severity\":\"error\",\"code\":\"throttled\",\"details\":{\"text\":\"Rate limit exceeded: 600 req/min\"}}]}",
+      "logs": "2026-04-28T09:30:00Z INFO  [fhir-patient-flow-1] fhir-patient-query: Starting FHIR Patient search requests=0\n2026-04-28T09:30:45Z INFO  [fhir-patient-flow-1] fhir-patient-query: requests_sent=590 avg_latency_ms=48\n2026-04-28T09:31:00Z WARN  [fhir-patient-flow-1] fhir-patient-query: HTTP 429 received from Epic FHIR Retry-After=60s request_id=fhir-7821\n2026-04-28T09:31:00Z ERROR [fhir-patient-flow-1] fhir-patient-query: Rate limit hit — 18 patient searches failed in last 15s\n2026-04-28T09:31:01Z WARN  [fhir-patient-flow-1] fhir-patient-query: Retry queue depth=18 waiting for Retry-After window\n2026-04-28T09:31:05Z ERROR [fhir-patient-flow-1] fhir-patient-query: Downstream HL7-ACK timeout — SLA breach patient_id=PAT-1234567",
+      "service_name": "fhir-patient-query-api",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["rate limit", "429", "throttle", "FHIR", "Epic"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "ms_003",
+    "description": "CloudHub DB connector pool exhaustion — patient records service under load",
+    "input": {
+      "error_message": "org.mule.runtime.api.connection.ConnectionException: Unable to acquire DB connection within 30000ms — pool exhausted (active=20, max=20)",
+      "stack_trace": "org.mule.runtime.api.connection.ConnectionException: Unable to acquire DB connection within 30000ms\n  at com.mulesoft.connectors.db.internal.DbConnectionProvider.connect(DbConnectionProvider.java:134)\n  at org.mule.runtime.extension.api.runtime.source.SourceCallback.handle(SourceCallback.java:89)\n  at com.mulesoft.connectors.db.internal.operation.SelectOperation.execute(SelectOperation.java:98)\n  at org.mule.runtime.module.extension.internal.runtime.operation.OperationMessageProcessor.process(OperationMessageProcessor.java:210)\nCaused by: com.mchange.v2.resourcepool.TimeoutException: A client timed out while waiting to acquire a resource from com.mchange.v2.c3p0.impl.DefaultConnectionTester pool\n  at com.mchange.v2.resourcepool.BasicResourcePool.awaitAvailable(BasicResourcePool.java:1317)",
+      "logs": "2026-04-28T07:00:00Z INFO  [patient-svc-01] patient-records-flow: Service started active_connections=2\n2026-04-28T07:45:10Z INFO  [patient-svc-01] patient-records-flow: active_connections=18 pool_utilization=90%\n2026-04-28T07:47:30Z WARN  [patient-svc-01] patient-records-flow: DB pool near limit active=19 max=20 waiting_threads=4\n2026-04-28T07:48:00Z ERROR [patient-svc-01] patient-records-flow: ConnectionException — pool exhausted active=20 max=20\n2026-04-28T07:48:01Z ERROR [patient-svc-01] patient-records-flow: 34 patient record requests failed in last 60s\n2026-04-28T07:48:05Z ERROR [patient-svc-01] patient-records-flow: CRITICAL — patient-record-service unavailable downstream_failures=34",
+      "service_name": "patient-records-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "CRITICAL",
+      "root_cause_keywords": ["connection pool", "exhausted", "DB", "timeout"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "ms_004",
+    "description": "Anypoint MQ dead letter queue accumulation — clinical lab results not delivered",
+    "input": {
+      "error_message": "com.mulesoft.mq.api.exception.MaxRedeliveryReachedException: Message ID amq-clr-882291 has exceeded max redelivery count (5) — moved to DLQ 'clinical-lab-results-dlq'",
+      "stack_trace": "com.mulesoft.mq.api.exception.MaxRedeliveryReachedException: Message exceeded max redelivery count=5\n  at com.mulesoft.connectors.anypoint.mq.internal.source.MqMessageListener.onMessage(MqMessageListener.java:204)\n  at org.mule.runtime.core.internal.processor.chain.DefaultMessageProcessorChainBuilder.build(DefaultMessageProcessorChainBuilder.java:89)\n  at com.mulesoft.connectors.anypoint.mq.internal.connection.MqConnection.consume(MqConnection.java:156)\nCaused by: org.mule.runtime.core.api.exception.MessagingException: Failed to transform LabResult payload\n  at com.mulesoft.connectors.anypoint.mq.internal.source.AnypointMqRedeliver.redeliver(AnypointMqRedeliver.java:78)\nCaused by: com.fasterxml.jackson.core.JsonParseException: Unexpected character '{' at position 0 — payload may be HL7 not JSON",
+      "logs": "2026-04-28T11:00:00Z INFO  [amq-consumer-01] lab-result-delivery-flow: MQ consumer started queue=clinical-lab-results\n2026-04-28T11:00:15Z WARN  [amq-consumer-01] lab-result-delivery-flow: JsonParseException on message amq-clr-882291 attempt=1/5\n2026-04-28T11:00:20Z WARN  [amq-consumer-01] lab-result-delivery-flow: Redelivery attempt=2/5 message_id=amq-clr-882291\n2026-04-28T11:00:30Z WARN  [amq-consumer-01] lab-result-delivery-flow: Redelivery attempt=5/5 message_id=amq-clr-882291\n2026-04-28T11:00:35Z ERROR [amq-consumer-01] lab-result-delivery-flow: Max redelivery exceeded — moved to DLQ message_id=amq-clr-882291\n2026-04-28T11:02:00Z ERROR [amq-consumer-01] lab-result-delivery-flow: DLQ depth=47 — 47 lab results not delivered to EHR",
+      "service_name": "lab-result-delivery-mule",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["DLQ", "dead letter", "redelivery", "MQ", "payload"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "ms_005",
+    "description": "SMART on FHIR OAuth2 token expiry — mid-pipeline authorization failure",
+    "input": {
+      "error_message": "HTTP POST https://fhir.cernerworks.com/r4/MedicationRequest returned 401 Unauthorized — WWW-Authenticate: Bearer error=\"invalid_token\" error_description=\"JWT expired at 2026-04-28T08:00:00Z\"",
+      "stack_trace": "com.mulesoft.connectors.http.api.error.ResponseValidatorTypedException: Response code 401 mapped as failure\n  at com.mulesoft.connectors.http.internal.request.validator.DefaultHttpResponseValidator.validate(DefaultHttpResponseValidator.java:75)\n  at com.mulesoft.connectors.http.internal.request.HttpRequestOperations.execute(HttpRequestOperations.java:183)\n  at org.mule.runtime.module.extension.internal.runtime.operation.OperationMessageProcessor.doProcess(OperationMessageProcessor.java:147)\nCaused by: org.mule.runtime.http.api.domain.message.response.HttpResponse: status=401 headers={WWW-Authenticate: Bearer error=invalid_token}\nNote: OAuth2 token cached at 2026-04-27T20:00:00Z, TTL=43200s — token expired but refresh was not triggered",
+      "logs": "2026-04-28T07:58:00Z INFO  [med-req-flow-1] medication-request-flow: Sending MedicationRequest to Cerner FHIR patient_id=P-00289\n2026-04-28T07:58:01Z ERROR [med-req-flow-1] medication-request-flow: HTTP 401 from Cerner FHIR endpoint — token expired\n2026-04-28T07:58:01Z WARN  [med-req-flow-1] medication-request-flow: OAuth2 token TTL=43200s issued_at=2026-04-27T20:00:00Z expired_at=2026-04-28T08:00:00Z\n2026-04-28T07:58:02Z ERROR [med-req-flow-1] medication-request-flow: Token refresh handler not triggered — token_refresh_enabled=false\n2026-04-28T07:58:02Z ERROR [med-req-flow-1] medication-request-flow: MedicationRequest blocked for patient_id=P-00289 — authorization failure\n2026-04-28T07:58:10Z ERROR [med-req-flow-1] medication-request-flow: 12 MedicationRequest flows failed due to expired OAuth2 token",
+      "service_name": "medication-request-integration",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["OAuth2", "token", "expired", "401", "refresh"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "ms_006",
+    "description": "DataWeave NullPointerException during HL7 v2.5 to FHIR R4 transformation",
+    "input": {
+      "error_message": "org.mule.runtime.api.el.ExpressionExecutionException: NullPointerException evaluating expression: payload.OBX[0].OBX5[0].CE1 — OBX segment absent in HL7 ORU^R01 message",
+      "stack_trace": "org.mule.runtime.api.el.ExpressionExecutionException: NullPointerException\n  at org.mule.weave.v2.runtime.RuntimeModule.run(RuntimeModule.java:240)\n  at org.mule.runtime.core.internal.el.mvel.MVELExpressionLanguage.evaluate(MVELExpressionLanguage.java:157)\n  at org.mule.runtime.core.internal.processor.chain.InterceptedReactiveProcessor.lambda$apply$0(InterceptedReactiveProcessor.java:54)\nCaused by: java.lang.NullPointerException: Cannot invoke method CE1() on null object\n  at anonymous$1.call(dataweave:hl7-to-fhir-transform.dwl:34)\n  at org.mule.weave.v2.el.provider.MuleWeaveVariableAccessorExpression.evaluate(MuleWeaveVariableAccessorExpression.java:67)",
+      "logs": "2026-04-28T14:05:00Z INFO  [oru-listener-01] lab-result-transform-flow: Received HL7 ORU^R01 from LIS system message_id=ORU00442\n2026-04-28T14:05:00Z INFO  [oru-listener-01] lab-result-transform-flow: MSH|^~\\&|LIS|LAB|EPIC|HOSP|20260428140500||ORU^R01|ORU00442|P|2.5\n2026-04-28T14:05:01Z WARN  [oru-listener-01] lab-result-transform-flow: OBX segment not present in HL7 message_id=ORU00442 — observation result missing\n2026-04-28T14:05:01Z ERROR [oru-listener-01] lab-result-transform-flow: DataWeave ExpressionExecutionException at hl7-to-fhir-transform.dwl:34\n2026-04-28T14:05:01Z ERROR [oru-listener-01] lab-result-transform-flow: NullPointerException on OBX[0].OBX5[0].CE1 — segment absent message_id=ORU00442\n2026-04-28T14:05:02Z ERROR [oru-listener-01] lab-result-transform-flow: FHIR Observation resource not created — patient lab result lost",
+      "service_name": "hl7-fhir-transform-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["NullPointerException", "OBX", "DataWeave", "HL7", "absent"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "ms_007",
+    "description": "SFTP inbound endpoint — claims batch EDI 837 file not found at scheduled pickup",
+    "input": {
+      "error_message": "org.mule.runtime.api.connection.ConnectionException: SFTP read failed — /claims/outbound/837P_20260428_0800.edi does not exist on host sftp.payer-gateway.com",
+      "stack_trace": "org.mule.runtime.api.connection.ConnectionException: SFTP read failed — file not found\n  at com.mulesoft.connectors.sftp.internal.operation.SftpOperations.readFile(SftpOperations.java:187)\n  at com.mulesoft.connectors.sftp.internal.source.SftpDirectoryListener.poll(SftpDirectoryListener.java:94)\n  at org.mule.runtime.module.extension.internal.runtime.source.SourceAdapter.poll(SourceAdapter.java:213)\nCaused by: org.apache.sshd.common.SftpException: No such file /claims/outbound/837P_20260428_0800.edi (SSH_FX_NO_SUCH_FILE)\n  at org.apache.sshd.sftp.client.impl.DefaultSftpClient.checkStatus(DefaultSftpClient.java:634)",
+      "logs": "2026-04-28T08:00:00Z INFO  [sftp-poller-01] claims-batch-pickup-flow: SFTP polling started host=sftp.payer-gateway.com dir=/claims/outbound\n2026-04-28T08:00:05Z WARN  [sftp-poller-01] claims-batch-pickup-flow: Expected file 837P_20260428_0800.edi not found on SFTP server\n2026-04-28T08:00:05Z INFO  [sftp-poller-01] claims-batch-pickup-flow: Last successful pickup was 2026-04-27T08:00:02Z\n2026-04-28T08:00:10Z ERROR [sftp-poller-01] claims-batch-pickup-flow: SFTP ConnectionException — file not found retry=1/3\n2026-04-28T08:01:00Z ERROR [sftp-poller-01] claims-batch-pickup-flow: File still absent after 3 retries — claims batch not processed\n2026-04-28T08:01:01Z ERROR [sftp-poller-01] claims-batch-pickup-flow: SLA breach — 837P claims batch overdue by 60s submission_deadline=08:00",
+      "service_name": "claims-batch-integration",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["SFTP", "file not found", "claims", "EDI", "pickup"],
+      "min_confidence": 0.55
+    }
+  },
+  {
+    "id": "ms_008",
+    "description": "TLS certificate expired on payer API gateway — all outbound claims rejected",
+    "input": {
+      "error_message": "javax.net.ssl.SSLHandshakeException: PKIX path validation failed: java.security.cert.CertPathValidatorException: validity check failed — certificate expired 2026-04-27T23:59:59Z on host api.bluecross-gateway.com",
+      "stack_trace": "javax.net.ssl.SSLHandshakeException: PKIX path validation failed\n  at sun.security.ssl.Alerts.getSSLException(Alerts.java:192)\n  at sun.security.ssl.SSLSocketImpl.fatal(SSLSocketImpl.java:1946)\n  at sun.security.ssl.Handshaker.fatalSE(Handshaker.java:316)\n  at com.mulesoft.connectors.http.internal.request.HttpRequestOperations.execute(HttpRequestOperations.java:183)\n  at org.mule.runtime.module.extension.internal.runtime.operation.OperationMessageProcessor.doProcess(OperationMessageProcessor.java:147)\nCaused by: sun.security.validator.ValidatorException: PKIX path validation failed: validity check failed\n  at sun.security.validator.PKIXValidator.doValidate(PKIXValidator.java:369)\n  at sun.security.ssl.AbstractTrustManagerWrapper.checkServerTrusted(SSLContextImpl.java:936)",
+      "logs": "2026-04-28T00:00:10Z ERROR [claims-submit-01] eligibility-claims-flow: SSLHandshakeException — TLS handshake failed host=api.bluecross-gateway.com\n2026-04-28T00:00:10Z ERROR [claims-submit-01] eligibility-claims-flow: PKIX certificate expired 2026-04-27T23:59:59Z\n2026-04-28T00:00:11Z WARN  [claims-submit-01] eligibility-claims-flow: Retry 1/3 after TLS failure\n2026-04-28T00:00:15Z ERROR [claims-submit-01] eligibility-claims-flow: All 3 retries failed — TLS cert still expired\n2026-04-28T00:00:16Z ERROR [claims-submit-01] eligibility-claims-flow: CRITICAL — all claims submissions to BlueCross blocked\n2026-04-28T00:05:00Z ERROR [claims-submit-01] eligibility-claims-flow: 284 claims queued, 0 submitted — payer gateway unreachable",
+      "service_name": "eligibility-claims-submission",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "CRITICAL",
+      "root_cause_keywords": ["SSL", "certificate", "expired", "TLS", "PKIX"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "ms_009",
+    "description": "SOAP CXF connector WSDL schema validation failure — legacy EMR prior authorization",
+    "input": {
+      "error_message": "org.mule.runtime.soap.api.exception.SoapFaultException: WSDL schema validation failed — element 'PriorAuthRequest' is missing required child element 'DiagnosisCode' at line 14 of request",
+      "stack_trace": "org.mule.runtime.soap.api.exception.SoapFaultException: WSDL schema validation failed\n  at org.mule.runtime.module.cxf.handler.MuleSoapHandler.handleFault(MuleSoapHandler.java:88)\n  at org.apache.cxf.phase.PhaseInterceptorChain.doIntercept(PhaseInterceptorChain.java:308)\n  at org.apache.cxf.interceptor.AbstractInDatabindingInterceptor.validateFaultDetail(AbstractInDatabindingInterceptor.java:180)\nCaused by: javax.xml.bind.UnmarshalException: unexpected element (uri:\"\", local:\"DiagnosisCode\"); expected elements are <{urn:emr-prior-auth-v2}PriorAuthRequest>\n  at com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallerImpl.handleStreamException(UnmarshallerImpl.java:449)\nNote: EMR was upgraded from WSDL v1.8 to v2.0 last night — DiagnosisCode is now a required field",
+      "logs": "2026-04-28T10:25:00Z INFO  [soap-client-01] prior-auth-flow: Sending PriorAuthRequest to legacy EMR SOAP service endpoint=https://emr-internal/PriorAuthService\n2026-04-28T10:25:01Z ERROR [soap-client-01] prior-auth-flow: SoapFaultException — WSDL schema validation failed\n2026-04-28T10:25:01Z ERROR [soap-client-01] prior-auth-flow: Missing required element DiagnosisCode in PriorAuthRequest — EMR WSDL v2.0 now requires this field\n2026-04-28T10:25:02Z WARN  [soap-client-01] prior-auth-flow: EMR WSDL version mismatch detected — Mule configured for v1.8, EMR now on v2.0\n2026-04-28T10:25:02Z ERROR [soap-client-01] prior-auth-flow: Prior authorization request rejected for patient_id=PAT-00912\n2026-04-28T10:25:10Z ERROR [soap-client-01] prior-auth-flow: 8 prior-auth requests failed since EMR upgrade last night",
+      "service_name": "prior-authorization-integration",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["WSDL", "schema", "SOAP", "DiagnosisCode", "version"],
+      "min_confidence": 0.55
+    }
+  },
+  {
+    "id": "ms_010",
+    "description": "Anypoint Object Store cluster partition — duplicate clinical order processing",
+    "input": {
+      "error_message": "com.mulesoft.connectors.objectstore.api.exception.ObjectStoreException: Cluster partition detected — idempotency key 'clinical-order-ORD-CLN-8812' already exists in remote store but not in local node — possible duplicate message processing",
+      "stack_trace": "com.mulesoft.connectors.objectstore.api.exception.ObjectStoreException: Cluster partition — key conflict\n  at com.mulesoft.connectors.objectstore.internal.operation.ObjectStoreOperations.store(ObjectStoreOperations.java:142)\n  at org.mule.runtime.module.extension.internal.runtime.operation.OperationMessageProcessor.doProcess(OperationMessageProcessor.java:147)\n  at org.mule.runtime.core.internal.processor.chain.InterceptedReactiveProcessor.lambda$apply$0(InterceptedReactiveProcessor.java:54)\nCaused by: com.mulesoft.mule.runtime.module.cluster.impl.HazelcastObjectStore$HazelcastLockException: Key 'clinical-order-ORD-CLN-8812' locked by node cluster-node-2 — node-1 cannot acquire lock\n  at com.hazelcast.map.impl.proxy.MapProxyImpl.putIfAbsent(MapProxyImpl.java:294)",
+      "logs": "2026-04-28T13:00:00Z INFO  [order-flow-01] clinical-order-flow: Processing clinical order order_id=ORD-CLN-8812 node=cluster-node-1\n2026-04-28T13:00:00Z INFO  [order-flow-02] clinical-order-flow: Processing clinical order order_id=ORD-CLN-8812 node=cluster-node-2\n2026-04-28T13:00:01Z WARN  [order-flow-01] clinical-order-flow: ObjectStore key conflict — idempotency key already locked by cluster-node-2\n2026-04-28T13:00:01Z ERROR [order-flow-01] clinical-order-flow: ObjectStoreException cluster partition order_id=ORD-CLN-8812\n2026-04-28T13:00:02Z ERROR [order-flow-01] clinical-order-flow: Duplicate processing risk — order ORD-CLN-8812 may be submitted twice to EHR\n2026-04-28T13:00:05Z ERROR [order-flow-01] clinical-order-flow: Cluster split-brain suspected — both nodes processed 3 orders concurrently",
+      "service_name": "clinical-order-processing",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["cluster", "partition", "idempotency", "duplicate", "ObjectStore"],
+      "min_confidence": 0.6
+    }
+  }
+]

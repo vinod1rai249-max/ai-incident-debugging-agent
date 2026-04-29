@@ -1,0 +1,113 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 15 }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Total Open Incidents",
+      "type": "stat",
+      "targets": [{ "datasource": "Prometheus", "expr": "sum(servicenow_incident_count)", "legendFormat": "Total" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "title": "High Priority Incidents (P1/P2)",
+      "type": "stat",
+      "targets": [{ "datasource": "Prometheus", "expr": "servicenow_high_priority_incident_count", "legendFormat": "High Priority" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 2 }, { "color": "red", "value": 5 }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "title": "Total Correlations Found",
+      "type": "stat",
+      "targets": [{ "datasource": "Prometheus", "expr": "correlation_found_total", "legendFormat": "Correlations" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "title": "AI Analysis Requests",
+      "type": "stat",
+      "targets": [{ "datasource": "Prometheus", "expr": "sum(ai_analysis_requests_total)", "legendFormat": "Total" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "title": "Incidents Over Time (by priority)",
+      "type": "timeseries",
+      "targets": [{ "datasource": "Prometheus", "expr": "servicenow_incident_count", "legendFormat": "Priority {{priority}} / State {{state}}" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "title": "Dynatrace Service Error Rate",
+      "type": "timeseries",
+      "targets": [{ "datasource": "Prometheus", "expr": "dynatrace_service_error_rate", "legendFormat": "{{service_name}}" }]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "AI Analysis Duration (p50/p95)",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": "Prometheus", "expr": "histogram_quantile(0.50, rate(ai_analysis_duration_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "datasource": "Prometheus", "expr": "histogram_quantile(0.95, rate(ai_analysis_duration_seconds_bucket[5m]))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "AI Analysis Success vs Error",
+      "type": "timeseries",
+      "targets": [
+        { "datasource": "Prometheus", "expr": "rate(ai_analysis_requests_total{status='success'}[5m])", "legendFormat": "Success/s" },
+        { "datasource": "Prometheus", "expr": "rate(ai_analysis_requests_total{status='error'}[5m])", "legendFormat": "Error/s" }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["incidents", "dynatrace", "servicenow"],
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "title": "Incident Correlation Agent",
+  "uid": "incident-correlation-001",
+  "version": 1
+}

@@ -1,0 +1,173 @@
+[
+  {
+    "id": "case_001",
+    "description": "AttributeError on NoneType in payment processing",
+    "input": {
+      "error_message": "AttributeError: 'NoneType' object has no attribute 'charge_id'",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/services/payment.py\", line 84, in process_payment\n    charge_id = transaction.charge_id\nAttributeError: 'NoneType' object has no attribute 'charge_id'",
+      "logs": "2026-04-28T10:12:01Z INFO  payment-service starting payment processing order_id=ORD-9921\n2026-04-28T10:12:01Z INFO  fetching transaction from DB order_id=ORD-9921\n2026-04-28T10:12:01Z WARN  transaction not found in DB order_id=ORD-9921 result=None\n2026-04-28T10:12:01Z ERROR AttributeError: 'NoneType' object has no attribute 'charge_id'",
+      "code_snippet": "def process_payment(order_id: str) -> str:\n    transaction = db.get_transaction(order_id)\n    charge_id = transaction.charge_id  # transaction may be None\n    return charge_id",
+      "service_name": "payment-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["NoneType", "attribute access", "None"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "case_002",
+    "description": "Database connection pool exhaustion under load",
+    "input": {
+      "error_message": "sqlalchemy.exc.TimeoutError: QueuePool limit of size 5 overflow 10 reached, connection timed out, timeout 30",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/repos/user_repo.py\", line 42, in get_user\n    with engine.connect() as conn:\n  File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/impl.py\", line 298, in connect\n    raise TimeoutError()\nsqlalchemy.exc.TimeoutError: QueuePool limit of size 5 overflow 10 reached",
+      "logs": "2026-04-28T09:00:00Z INFO  request_count=450 active_connections=14\n2026-04-28T09:00:02Z WARN  connection pool near limit active=13 max=15\n2026-04-28T09:00:05Z ERROR QueuePool limit of size 5 overflow 10 reached, connection timed out\n2026-04-28T09:00:05Z ERROR 47 requests failed with TimeoutError in last 10s",
+      "code_snippet": null,
+      "service_name": "user-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "CRITICAL",
+      "root_cause_keywords": ["connection pool", "timeout", "max_connections"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "case_003",
+    "description": "Out-of-memory crash in ML inference service",
+    "input": {
+      "error_message": "torch.cuda.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.50 GiB (GPU 0; 10.76 GiB total capacity; 9.80 GiB already allocated)",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/ml/inference.py\", line 67, in run_batch\n    outputs = model(inputs)\n  File \"/usr/local/lib/python3.11/site-packages/torch/nn/modules/module.py\", line 1511, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\ntorch.cuda.OutOfMemoryError: CUDA out of memory.",
+      "logs": "2026-04-28T08:30:00Z INFO  inference batch_size=128 model=llm-v2\n2026-04-28T08:30:01Z WARN  GPU memory usage at 91% allocated=9.80GiB total=10.76GiB\n2026-04-28T08:30:02Z ERROR torch.cuda.OutOfMemoryError: CUDA out of memory\n2026-04-28T08:30:02Z ERROR worker process crashed pid=12345",
+      "code_snippet": "def run_batch(inputs: list) -> list:\n    # batch_size not throttled — can exceed GPU memory\n    outputs = model(inputs)\n    return outputs",
+      "service_name": "ml-inference-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "CRITICAL",
+      "root_cause_keywords": ["memory", "OOM", "CUDA", "allocated"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "case_004",
+    "description": "Infinite retry storm causing cascading service failure",
+    "input": {
+      "error_message": "RetryError: HTTPConnectionPool max retries exceeded with url /api/orders (Caused by NewConnectionError: Failed to establish a new connection)",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/clients/order_client.py\", line 55, in fetch_orders\n    response = session.get(ORDER_SERVICE_URL, timeout=5)\n  File \"/usr/local/lib/python3.11/site-packages/requests/adapters.py\", line 589, in send\n    raise RetryError(e, request=request)\nurllib3.exceptions.MaxRetryError: HTTPConnectionPool max retries exceeded",
+      "logs": "2026-04-28T11:00:00Z WARN  order-service unreachable, attempt=1\n2026-04-28T11:00:01Z WARN  order-service unreachable, attempt=2\n2026-04-28T11:00:02Z WARN  order-service unreachable, attempt=3\n2026-04-28T11:00:03Z ERROR all retries exhausted — 2400 req/s hammering order-service\n2026-04-28T11:00:05Z CRITICAL order-service CPU at 100%, downstream latency p99=45s",
+      "code_snippet": "# No backoff — retries fire immediately, amplifying load\nfor attempt in range(MAX_RETRIES):\n    try:\n        return session.get(ORDER_SERVICE_URL, timeout=5)\n    except ConnectionError:\n        continue",
+      "service_name": "checkout-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "CRITICAL",
+      "root_cause_keywords": ["retry", "backoff", "cascading", "connection"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "case_005",
+    "description": "Missing required environment variable at service startup",
+    "input": {
+      "error_message": "KeyError: 'STRIPE_SECRET_KEY'",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/config.py\", line 18, in load_config\n    stripe_key = os.environ['STRIPE_SECRET_KEY']\nKeyError: 'STRIPE_SECRET_KEY'",
+      "logs": "2026-04-28T07:00:00Z INFO  billing-service starting up env=production\n2026-04-28T07:00:00Z INFO  loading configuration\n2026-04-28T07:00:00Z ERROR KeyError: 'STRIPE_SECRET_KEY'\n2026-04-28T07:00:00Z CRITICAL service failed to start — exiting",
+      "code_snippet": "def load_config():\n    stripe_key = os.environ['STRIPE_SECRET_KEY']  # hard KeyError if missing\n    return Config(stripe_key=stripe_key)",
+      "service_name": "billing-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["env var", "KeyError", "configuration", "missing", "STRIPE"],
+      "min_confidence": 0.7
+    }
+  },
+  {
+    "id": "case_006",
+    "description": "Dependency version conflict after deployment",
+    "input": {
+      "error_message": "ImportError: cannot import name 'BaseSettings' from 'pydantic' (pydantic 2.x removed it — use pydantic-settings)",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/core/config.py\", line 3, in <module>\n    from pydantic import BaseSettings\nImportError: cannot import name 'BaseSettings' from 'pydantic' (/usr/local/lib/python3.11/site-packages/pydantic/__init__.py)",
+      "logs": "2026-04-28T06:00:00Z INFO  deploying config-service version=2.4.1\n2026-04-28T06:00:01Z INFO  installing dependencies\n2026-04-28T06:00:05Z ERROR ImportError: cannot import name 'BaseSettings' from 'pydantic'\n2026-04-28T06:00:05Z CRITICAL service failed to initialize",
+      "code_snippet": "# pydantic v1 import — breaks on pydantic v2\nfrom pydantic import BaseSettings\n\nclass Settings(BaseSettings):\n    api_key: str",
+      "service_name": "config-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["ImportError", "version", "incompatible", "pydantic"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "case_007",
+    "description": "Deadlock in concurrent inventory update transactions",
+    "input": {
+      "error_message": "psycopg2.errors.DeadlockDetected: deadlock detected\nDETAIL: Process 18432 waits for ShareLock on transaction 7891; blocked by process 18433.\nProcess 18433 waits for ShareLock on transaction 7890; blocked by process 18432.",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/repos/inventory_repo.py\", line 93, in update_stock\n    cursor.execute(UPDATE_STOCK_SQL, (qty, item_id))\npsycopg2.errors.DeadlockDetected: deadlock detected",
+      "logs": "2026-04-28T14:05:00Z INFO  concurrent stock updates item_id=SKU-442 workers=2\n2026-04-28T14:05:01Z WARN  transaction 7890 waiting on lock item_id=SKU-442\n2026-04-28T14:05:01Z WARN  transaction 7891 waiting on lock item_id=SKU-443\n2026-04-28T14:05:02Z ERROR deadlock detected — PostgreSQL rolled back transaction 7891",
+      "code_snippet": "# Worker A: locks SKU-442 then SKU-443\n# Worker B: locks SKU-443 then SKU-442 — circular wait\ndef update_stock(item_ids: list[str], qty: int):\n    for item_id in item_ids:\n        cursor.execute(UPDATE_STOCK_SQL, (qty, item_id))",
+      "service_name": "inventory-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["deadlock", "lock", "concurrent", "transaction"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "case_008",
+    "description": "Rate limit from downstream payment gateway (429)",
+    "input": {
+      "error_message": "HTTPError: 429 Too Many Requests — Stripe API rate limit exceeded",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/clients/stripe_client.py\", line 38, in charge\n    response.raise_for_status()\n  File \"/usr/local/lib/python3.11/site-packages/requests/models.py\", line 1021, in raise_for_status\n    raise HTTPError(http_error_msg, response=self)\nrequests.exceptions.HTTPError: 429 Client Error: Too Many Requests",
+      "logs": "2026-04-28T15:30:00Z INFO  stripe charges processed in last 60s count=520\n2026-04-28T15:30:01Z WARN  stripe rate limit approaching count=490 limit=500\n2026-04-28T15:30:05Z ERROR HTTPError: 429 Too Many Requests\n2026-04-28T15:30:05Z WARN  30 payment requests queued, retrying without backoff",
+      "code_snippet": null,
+      "service_name": "payment-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["429", "rate limit", "throttle", "Stripe"],
+      "min_confidence": 0.6
+    }
+  },
+  {
+    "id": "case_009",
+    "description": "Disk full — log volume quota exceeded, writes failing",
+    "input": {
+      "error_message": "OSError: [Errno 28] No space left on device: '/var/log/app/app.log'",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/usr/local/lib/python3.11/logging/handlers.py\", line 194, in emit\n    self.stream.write(self.terminator)\nOSError: [Errno 28] No space left on device: '/var/log/app/app.log'",
+      "logs": "2026-04-28T16:00:00Z WARN  disk usage /var/log 88% used\n2026-04-28T16:10:00Z WARN  disk usage /var/log 95% used\n2026-04-28T16:20:00Z ERROR disk usage /var/log 100% used\n2026-04-28T16:20:01Z ERROR OSError: [Errno 28] No space left on device\n2026-04-28T16:20:01Z CRITICAL application writes failing — log rotation not configured",
+      "code_snippet": null,
+      "service_name": "reporting-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "HIGH",
+      "root_cause_keywords": ["ENOSPC", "no space", "disk", "storage", "quota"],
+      "min_confidence": 0.65
+    }
+  },
+  {
+    "id": "case_010",
+    "description": "JWT token expiry causing authentication failures",
+    "input": {
+      "error_message": "jwt.exceptions.ExpiredSignatureError: Signature has expired",
+      "stack_trace": "Traceback (most recent call last):\n  File \"/app/middleware/auth.py\", line 52, in verify_token\n    payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])\n  File \"/usr/local/lib/python3.11/site-packages/jwt/api_jwt.py\", line 119, in decode\n    decoded = self.decode_complete(jwt, key, algorithms, options, **kwargs)\njwt.exceptions.ExpiredSignatureError: Signature has expired",
+      "logs": "2026-04-28T17:00:00Z INFO  auth-service token validation started\n2026-04-28T17:00:01Z WARN  401 Unauthorized — token expired user_id=usr-8821\n2026-04-28T17:00:01Z WARN  401 Unauthorized — token expired user_id=usr-9043\n2026-04-28T17:00:02Z ERROR 312 auth failures in last 60s — mass token expiry event\n2026-04-28T17:00:02Z INFO  token_ttl_seconds=3600 issued_at=2026-04-28T16:00:00Z",
+      "logs_extended": "Tokens were issued 1h ago and TTL=3600s. No refresh token flow implemented.",
+      "code_snippet": "def verify_token(token: str) -> dict:\n    # No refresh flow — tokens expire silently\n    payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])\n    return payload",
+      "service_name": "auth-service",
+      "environment": "production"
+    },
+    "expected": {
+      "severity": "MEDIUM",
+      "root_cause_keywords": ["expired", "401", "token", "JWT", "signature"],
+      "min_confidence": 0.65
+    }
+  }
+]

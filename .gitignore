@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Data (keep structure, ignore content)
+data/raw/*
+data/processed/*
+data/vector_stores/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/vector_stores/.gitkeep
+
+# ML artifacts
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type checking
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+*.log

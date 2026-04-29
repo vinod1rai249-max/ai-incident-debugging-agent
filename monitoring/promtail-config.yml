@@ -1,0 +1,73 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # No server-side filters — they silently return zero results on
+        # Docker Desktop for Windows.  Filtering is done in relabel_configs.
+
+    relabel_configs:
+      # Strip leading slash from Docker container name (/name → name).
+      # /?(.*) makes the slash optional so the rule never fails on
+      # Docker Desktop for Windows regardless of whether the slash is present.
+      - source_labels: ["__meta_docker_container_name"]
+        target_label: "container_name"
+        regex: "/?(.*)"
+        replacement: "$1"
+
+      # Drop containers whose name does not contain "api".
+      - source_labels: ["__meta_docker_container_name"]
+        regex: ".*api.*"
+        action: keep
+
+      # compose_service: read Docker label; replacement: 'api' guarantees a
+      # non-empty value even when the meta label is unavailable (Docker Desktop
+      # edge case — an empty result deletes the label, breaking Loki queries).
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_service"]
+        target_label: "compose_service"
+        replacement: "api"
+
+      # job label (static)
+      - replacement: "docker"
+        target_label: "job"
+
+      # container: same slash-safe regex; kept separate so both label names exist.
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/?(.*)"
+        target_label: "container"
+
+      # compose_project: value of the com.docker.compose.project label
+      - source_labels: ["__meta_docker_container_label_com_docker_compose_project"]
+        target_label: "compose_project"
+
+    pipeline_stages:
+      # Parse Docker's json-file wrapper:
+      #   {"log":"<app line>\n","stream":"stdout","time":"<rfc3339nano>"}
+      # This stage sets the log line to the inner "log" value, adds the
+      # "stream" label (stdout/stderr), and extracts the timestamp.
+      - docker: {}
+
+      # Extract structlog fields from the inner JSON log line.
+      # If the line is not valid JSON (e.g. plain-text uvicorn messages)
+      # this stage is a no-op — the entry is still pushed to Loki.
+      - json:
+          expressions:
+            level: level
+            event: event
+            agent: agent
+
+      # Promote structlog fields to indexed Loki labels.
+      - labels:
+          level:
+          event:
+          agent:
